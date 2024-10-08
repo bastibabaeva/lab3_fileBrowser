@@ -3,46 +3,72 @@
 #include "byFolderCalcStrategy.h"
 #include "byTypeCalcStrategy.h"
 #include <memory>
-#include <windows.h> // Для использования функции SetConsoleOutputCP
+#include <QString>
+#include <QDir>
+
 using namespace std;
+
+QString percentageCalc(int size, int total_size) { //Функция для вычисления процентного соотношения текущего файла/папки от общего размера директории
+    if (total_size != 0 && size != 0) { //Если общий размер директории не равен 0, то
+        double percent = 100.0 * size / total_size;
+        if (percent < 0.01) return "< 0.01 %"; //для обработки очень маленьких файлов
+        else return QString::number(percent, 'f', 2) + " %"; //возвращаем процент в фиксированном формате(f) с 2 знаками после запятой в виде строки
+    }
+    else { return "0.00 %"; }
+}
 
 int main()
 {
     SetConsoleOutputCP(CP_UTF8); // Установка кодировки консоли для корректного отображения русских символов
-    cout << "Введите путь к директории: ";
+    cout << "Enter the path to the directory: ";
     string path;
-    getline(cin, path);
+    getline(cin, path); //Вводим путь к директории
 
-    cout << "Выберите стратегию вычисления размеров файлов: 1 - по папкам, 2 - по типам. ";
-    int strategy; cin >> strategy;
+    cout << "Select a strategy for calculating file sizes: 1 - grouping by folders, 2 - grouping by types. ";
+    int strategy; cin >> strategy; //Вводим стратегию
 
-    unique_ptr<Calculator> calculator;
+    unique_ptr<Calculator> calculator; //Создаем умный указатель на объект-стратегию
+    //unique_ptr - предоставляет единственное владение объектом и гарантирует его удаление при выходе из области видимости
     switch(strategy) {
     case 1: {
-        calculator = make_unique<Calculator>(new ByFolderCalculationStrategy);
+        calculator = make_unique<Calculator>(make_unique<ByFolderCalculationStrategy>()); //создаем умный указатель на объект класса Calculator,
+        //в конструктор Calculator передаем в качестве параметра умный указатель на объект конкретной стратегии: по папкам
         break;
     }
     case 2: {
-        calculator = make_unique<Calculator>(new ByTypeCalculationStrategy);
+        calculator = make_unique<Calculator>(make_unique<ByTypeCalculationStrategy>()); //создаем умный указатель на объект класса Calculator,
+        //в конструктор Calculator передаем в качестве параметра умный указатель на объект конкретной стратегии: по типам
         break;
     }
-    default: {
-        cout << "Неверная стратегия." << endl;
+    default: { // если значение strategy не попадает ни в один из случаев, то
+        cout << "Wrong strategy." << endl;
         return 1;
     }
     }
-
-    QList<QPair<QString, QPair<int, int>>> result = calculator->calculate(QString::fromStdString(path));
-
-    if (result.isEmpty()) {
-        cout << "В директории ничего не найдено или доступ к директории невозможен." << endl;
+    QString qPath = QString::fromStdString(path); //конвертация стандартной строки в объект QString
+    QDir dir(qPath); // Создаем объект типа QDir, передавая в него текущий путь, для работы с директориями.
+    if (!dir.exists()) { //Если текущей директории не существует
+        cout << "Directory doesn't exist." << endl;
+        return 1;
     }
-    else { // Вывод результата
-        for (const auto& fileInfo : result) {
-            cout << "Имя файла: " << fileInfo.first.toStdString()
-                 << ", Размер файла: " << fileInfo.second.first / 1024 << " Кб"
-                 << ", Общий размер директории: " << fileInfo.second.second / 1024 << " Кб" << endl;
+    QList<QPair<QString, QPair<int, int>>> result = calculator->calculate(qPath); //В зависимости от выбранной стратегии вызывается метод
+    //для вычисления размера файлов для текущего пути и результат вносится в список из пары <имя, <размер, общий размер директории>>
+    if (result.isEmpty()) { //Если директория пустая
+        cout << "Current Directory: " << qPath.toStdString() << "  Size: 0 Кб " << " Percentage: 0.00%" << endl;
+    }
+    else {
+        int totalSize = 0;
+        for (const auto& fileInfo : result) { // Проходимся по файлам из списка и вычисляем общий размер текущей директории
+            totalSize += fileInfo.second.first; // fileInfo.second.first - это первое значение из второй пары списка
+        }
+        for (const auto& fileInfo : result) { // Также проходимся по элементам из списка для вывода информации
+            int size = fileInfo.second.first; // размер файла/папки
+            QString percentage = percentageCalc(size, totalSize); // Параметр инциализируется значением функции percentageCalc, в
+            // которую передается текущий размер файла/папки и общий размер директории
+            cout << "Name: " << fileInfo.first.toStdString() // Конвертация строки Qt в стандартную для вывода имени файла/папки
+                 << "  Size: " << size / 1024 << " Кб" //вывод размера каждого файла/папки
+                 << "  Percentage: " << percentage.toStdString() << endl; //вывод процентного соотношения от общего размера директории
         }
     }
-    return 0;
+            return 0;
 }
