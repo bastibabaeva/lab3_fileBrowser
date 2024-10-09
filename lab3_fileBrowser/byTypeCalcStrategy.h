@@ -7,52 +7,34 @@
 #include <iostream>
 using namespace std;
 
-class ByTypeCalculationStrategy : public CalculationStrategy {
+class ByTypeCalculationStrategy : public CalculationStrategy {//Класс, реализующий стратегию вычисления размера файлов, сгруппированных по типам
 public:
-    QMap<QString, QPair<int, int>> calculate(QString path, int level = 0) override {
-        QMap<QString, QPair<int, int>> map;
-        QFileInfo file(path);
-        int total_size = 0;
+    QMap<QString, int> calculate(QString path, int level ) { //метод для вычисления размера файлов для текущей директории,
+        // на вход которого передается path - путь к текущей директории и уровень вложенности level в файловой системе
+        QMap<QString, int> map; //Словарь, содержащий имя файла и его размер
+        QFileInfo file(path); // Создаем объект типа QFileInfo для проверки информации о его текущей позиции в файловой системе
 
-        if (file.isDir()) {
-            QDir dir(path);
-            QFileInfoList listInfo = dir.entryInfoList(QDir::Files | QDir::Hidden | QDir::NoSymLinks);
-            QMap<QString, QPair<int, int>> typeSizeMap;
+        if (file.isDir()) { // Проверка, является ли текущий файл директорией (папкой)
+            QDir dir(path); // Создаем объект типа QDir, передавая в него текущий путь, для работы с директориями
+            QFileInfoList filelist = dir.entryInfoList(QDir::Files | QDir::Hidden | QDir::NoSymLinks); //Получаем список файлов из текущей директории
 
-            for (const QFileInfo& fileInfo : listInfo) {
-                QString type = fileInfo.completeSuffix();
-                int file_size = fileInfo.size();
-
-                if (typeSizeMap.contains(type)) {
-                    QPair<int, int>& pair = typeSizeMap[type];
-                    pair.first += file_size;
-                    pair.second += file_size;
-                } else {
-                    typeSizeMap[type] = qMakePair(file_size, file_size);
-                }
+            for (const QFileInfo& fileInfo : filelist) { // Проходимся по файлам из этого списка
+                QString type = fileInfo.suffix(); //Вычисляем расширение файла с помощью метода suffix()
+                int file_size = fileInfo.size(); //Вычисляем размер текущего файла
+                map[type] += file_size; // Заносим в словарь размер файла к соответствующему типу
             }
 
-            QStringList listDir = dir.entryList(QDir::NoDotAndDotDot | QDir::Dirs);
-            for (const QString& subDirName : listDir) {
-                QString subDirPath = path + "/" + subDirName;
-                QMap<QString, QPair<int, int>> subDirMap = this->calculate(subDirPath, level + 1);
-
-                for (auto it = subDirMap.begin(); it != subDirMap.end(); ++it) {
-                    if (typeSizeMap.contains(it.key())) {
-                        QPair<int, int>& pair = typeSizeMap[it.key()];
-                        pair.first += it.value().first;
-                        pair.second += it.value().second;
-                    } else {
-                        typeSizeMap[it.key()] = it.value();
-                    }
+            QStringList subDirList = dir.entryList(QDir::NoDotAndDotDot | QDir::Dirs); // Получаем список поддиректорий (исключая родительскую
+            // и текущую директории)
+            for (const QString& subDirName : subDirList) { //Проходимся по каждой поддиректории из списка
+                QString subDirPath = path + "/" + subDirName; // Формируем полный путь к поддиректории
+                QMap<QString, int> subDirMap = this->calculate(subDirPath, 0); //Рекурсивно вызываем метод calculate для текущей поддиректории
+                //с уровнем вложенности 0 и результат записываем в словарь для хранения информации о поддиректориях
+                for (auto it = subDirMap.begin(); it != subDirMap.end(); ++it) { //Проходимся по элементам словаря поддиректорий
+                    map[it.key()] += it.value(); //Заносим в словарь-результат тип файла и его размер в поддиректории
                 }
-            }
-
-            for (auto it = typeSizeMap.constBegin(); it != typeSizeMap.constEnd(); ++it) {
-                map.insert(it.key(), it.value());
             }
         }
-
         return map;
     }
 };

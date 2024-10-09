@@ -6,8 +6,8 @@
 #include "calculationStrategy.h"
 #include <windows.h>
 #include <memory>
-
 using namespace std;
+
 
 class Calculator //Этот класс - контекст, который принимает указатель на стратегию, делегируя ей выполнение вычислений
 {
@@ -17,7 +17,7 @@ public:
         this->strategy = move(str); //т.е. мы указателю на стратегию присваиваем выбранную стратегию
         //move() используется для перемещения уникального указателя str в переменную-член this->strategy.
     }
-    QMap<QString, QPair<int, int>> calculate(QString path) //метод для передачи вычислений объекту-стратегии
+    QMap<QString, int> calculate(QString path) //метод для передачи вычислений объекту-стратегии
     {
         return strategy->calculate(path); //вызов метода для конкретной стратегии, в который передается путь к директории
     }
@@ -25,6 +25,5 @@ public:
 private:
     unique_ptr<CalculationStrategy> strategy; //умный указатель на объект-стратегию
     //unique_ptr - это умный указатель, предоставляющий единственное владение объектом и подсчитывает кол-во ссылок на него для автоматического удаления
-
 };
 #endif // CALCULATOR_H
